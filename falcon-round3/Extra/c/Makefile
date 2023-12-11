@@ -52,17 +52,26 @@ LIBS = #-lm
 # =====================================================================
 
 OBJ = codec.o common.o falcon.o fft.o fpr.o keygen.o rng.o shake.o sign.o vrfy.o
+KAT_OBJ = katrng.o
+KAT512_OBJ = nist_512.o
+KAT1024_OBJ = nist_1024.o
 
-all: test_falcon speed
+all: test_falcon speed PQCgenKAT_sign_512 PQCgenKAT_sign_1024
 
 clean:
-	-rm -f $(OBJ) test_falcon test_falcon.o speed speed.o
+	-rm -f $(OBJ) $(KAT_OBJ) $(KAT512_OBJ) $(KAT1024_OBJ) test_falcon test_falcon.o speed speed.o PQCgenKAT_sign_512 PQCgenKAT_sign_512.o PQCgenKAT_sign_1024 PQCgenKAT_sign_1024.o
 
 test_falcon: test_falcon.o $(OBJ)
 	$(LD) $(LDFLAGS) -o test_falcon test_falcon.o $(OBJ) $(LIBS)
 
 speed: speed.o $(OBJ)
 	$(LD) $(LDFLAGS) -o speed speed.o $(OBJ) $(LIBS)
+
+PQCgenKAT_sign_512: PQCgenKAT_sign_512.o $(OBJ) $(KAT_OBJ) $(KAT512_OBJ)
+	$(LD) $(LDFLAGS) -o PQCgenKAT_sign_512 PQCgenKAT_sign_512.o $(OBJ) $(KAT_OBJ) $(KAT512_OBJ) $(LIBS)
+
+PQCgenKAT_sign_1024: PQCgenKAT_sign_1024.o $(OBJ) $(KAT_OBJ) $(KAT1024_OBJ)
+	$(LD) $(LDFLAGS) -o PQCgenKAT_sign_1024 PQCgenKAT_sign_1024.o $(OBJ) $(KAT_OBJ) $(KAT1024_OBJ) $(LIBS)
 
 codec.o: codec.c config.h inner.h fpr.h
 	$(CC) $(CFLAGS) -c -o codec.o codec.c
@@ -79,8 +88,23 @@ fft.o: fft.c config.h inner.h fpr.h
 fpr.o: fpr.c config.h inner.h fpr.h
 	$(CC) $(CFLAGS) -c -o fpr.o fpr.c
 
+katrng.o: katrng.c katrng.h
+	$(CC) $(CFLAGS) -c -o katrng.o katrng.c
+
 keygen.o: keygen.c config.h inner.h fpr.h
 	$(CC) $(CFLAGS) -c -o keygen.o keygen.c
+
+nist_512.o: nist_512.c api_512.h inner.h
+	ln -s api_512.h api.h && $(CC) $(CFLAGS) -c -o nist_512.o nist_512.c && rm api.h
+
+nist_1024.o: nist_1024.c api_1024.h inner.h
+	ln -s api_1024.h api.h && $(CC) $(CFLAGS) -c -o nist_1024.o nist_1024.c && rm api.h
+
+PQCgenKAT_sign_512.o: PQCgenKAT_sign.c api_512.h katrng.h
+	ln -s api_512.h api.h && $(CC) $(CFLAGS) -c -o PQCgenKAT_sign_512.o PQCgenKAT_sign.c && rm api.h
+
+PQCgenKAT_sign_1024.o: PQCgenKAT_sign.c api_1024.h katrng.h
+	ln -s api_1024.h api.h && $(CC) $(CFLAGS) -c -o PQCgenKAT_sign_1024.o PQCgenKAT_sign.c && rm api.h
 
 rng.o: rng.c config.h inner.h fpr.h
 	$(CC) $(CFLAGS) -c -o rng.o rng.c
