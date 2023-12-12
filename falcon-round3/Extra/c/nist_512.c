@@ -258,13 +258,15 @@ crypto_sign_open(unsigned char *m, unsigned long long *mlen,
 	inner_shake256_init(&sc);
 	inner_shake256_inject(&sc, sm + 1, NONCELEN);
 	inner_shake256_inject(&sc, sm + NONCELEN + sig_len, msg_len);
-	inner_shake256_flip(&sc);
-	Zf(hash_to_point_vartime)(&sc, hm, 9);
+	//inner_shake256_flip(&sc);
+	//Zf(hash_to_point_vartime)(&sc, hm, 9);
+
+    if (!falcon_verify_finish(sm, NONCELEN + sig_len, FALCON_SIG_COMPRESSED, pk, CRYPTO_PUBLICKEYBYTES, (shake256_context *)&sc, tmp.b, sizeof(tmp.b))) {
 
 	/*
 	 * Verify signature.
 	 */
-	if (!Zf(verify_raw)(hm, sig, h, 9, tmp.b)) {
+	//if (!Zf(verify_raw)(hm, sig, h, 9, tmp.b)) {
 		return -7;
 	}
 
