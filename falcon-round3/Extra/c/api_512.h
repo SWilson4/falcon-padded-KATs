@@ -1,7 +1,7 @@
 #define CRYPTO_SECRETKEYBYTES   1281
 #define CRYPTO_PUBLICKEYBYTES   897
 #define CRYPTO_BYTES            690
-#define CRYPTO_ALGNAME          "Falcon-512"
+#define CRYPTO_ALGNAME          "Falcon-512 (PADDED)"
 
 int crypto_sign_keypair(unsigned char *pk, unsigned char *sk);
 

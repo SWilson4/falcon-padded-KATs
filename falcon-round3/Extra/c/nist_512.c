@@ -171,7 +171,7 @@ crypto_sign(unsigned char *sm, unsigned long long *smlen,
 	 * Compute the signature.
 	 */
     sig_len = CRYPTO_BYTES - 2;
-    if ((ret = falcon_sign_dyn_finish((shake256_context *)&sc_rng, sm, &sig_len, FALCON_SIG_COMPRESSED, sk, CRYPTO_SECRETKEYBYTES, (shake256_context *)&sc_hashdata, nonce, tmp.b, sizeof(tmp.b))) != 0) {
+    if ((ret = falcon_sign_dyn_finish((shake256_context *)&sc_rng, sm, &sig_len, FALCON_SIG_PADDED, sk, CRYPTO_SECRETKEYBYTES, (shake256_context *)&sc_hashdata, nonce, tmp.b, sizeof(tmp.b))) != 0) {
         return ret;
     }
 	//Zf(sign_dyn)(r.sig, &sc_rng, f, g, F, G, r.hm, 9, tmp.b);
@@ -246,11 +246,13 @@ crypto_sign_open(unsigned char *m, unsigned long long *mlen,
 	if (sig_len < 1 || sm[0] != 0x30 + 9) {
 		return -5;
 	}
+    /*
 	if (Zf(comp_decode)(sig, 9,
 		sm + 1 + NONCELEN, sig_len - 1) != sig_len - 1)
 	{
 		return -6;
 	}
+    */
 
 	/*
 	 * Hash nonce + message into a vector.
@@ -261,7 +263,7 @@ crypto_sign_open(unsigned char *m, unsigned long long *mlen,
 	//inner_shake256_flip(&sc);
 	//Zf(hash_to_point_vartime)(&sc, hm, 9);
 
-    if (!falcon_verify_finish(sm, NONCELEN + sig_len, FALCON_SIG_COMPRESSED, pk, CRYPTO_PUBLICKEYBYTES, (shake256_context *)&sc, tmp.b, sizeof(tmp.b))) {
+    if (!falcon_verify_finish(sm, NONCELEN + sig_len, FALCON_SIG_PADDED, pk, CRYPTO_PUBLICKEYBYTES, (shake256_context *)&sc, tmp.b, sizeof(tmp.b))) {
 
 	/*
 	 * Verify signature.
