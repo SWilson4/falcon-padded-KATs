@@ -170,7 +170,7 @@ crypto_sign(unsigned char *sm, unsigned long long *smlen,
 	/*
 	 * Compute the signature.
 	 */
-    sig_len = CRYPTO_BYTES - 2;
+    sig_len = CRYPTO_BYTES;
     if ((ret = falcon_sign_dyn_finish((shake256_context *)&sc_rng, sm, &sig_len, FALCON_SIG_PADDED, sk, CRYPTO_SECRETKEYBYTES, (shake256_context *)&sc_hashdata, nonce, tmp.b, sizeof(tmp.b))) != 0) {
         return ret;
     }
@@ -193,10 +193,10 @@ crypto_sign(unsigned char *sm, unsigned long long *smlen,
 	//sig_len ++;
 	memmove(sm + sig_len, m, mlen);
 	//memcpy(sm + 1, nonce, sizeof nonce);
-	*smlen = 2 + sig_len + mlen;
-    sig_len -= sizeof nonce;
-	sm[sizeof nonce + sig_len + mlen] = (unsigned char)(sig_len >> 8);
-	sm[sizeof nonce + sig_len + mlen + 1] = (unsigned char)sig_len;
+	*smlen = sig_len + mlen;
+    //sig_len -= sizeof nonce;
+	//sm[sizeof nonce + sig_len + mlen] = (unsigned char)(sig_len >> 8);
+	//sm[sizeof nonce + sig_len + mlen + 1] = (unsigned char)sig_len;
 	return 0;
 }
 
@@ -231,19 +231,21 @@ crypto_sign_open(unsigned char *m, unsigned long long *mlen,
 	/*
 	 * Find nonce, signature, message length.
 	 */
-	if (smlen < 2 + NONCELEN) {
+	if (smlen < CRYPTO_BYTES) {
 		return -3;
 	}
+    /*
 	sig_len = ((size_t)sm[smlen-2] << 8) | (size_t)sm[smlen-1];
 	if (sig_len > (smlen - 2 - NONCELEN)) {
 		return -4;
 	}
-	msg_len = smlen - 2 - NONCELEN - sig_len;
+    */
+	msg_len = smlen - CRYPTO_BYTES;
 
 	/*
 	 * Decode signature.
 	 */
-	if (sig_len < 1 || sm[0] != 0x30 + 9) {
+	if (sm[0] != 0x30 + 9) {
 		return -5;
 	}
     /*
@@ -259,11 +261,11 @@ crypto_sign_open(unsigned char *m, unsigned long long *mlen,
 	 */
 	inner_shake256_init(&sc);
 	inner_shake256_inject(&sc, sm + 1, NONCELEN);
-	inner_shake256_inject(&sc, sm + NONCELEN + sig_len, msg_len);
+	inner_shake256_inject(&sc, sm + CRYPTO_BYTES, msg_len);
 	//inner_shake256_flip(&sc);
 	//Zf(hash_to_point_vartime)(&sc, hm, 9);
 
-    if (!falcon_verify_finish(sm, NONCELEN + sig_len, FALCON_SIG_PADDED, pk, CRYPTO_PUBLICKEYBYTES, (shake256_context *)&sc, tmp.b, sizeof(tmp.b))) {
+    if (!falcon_verify_finish(sm, CRYPTO_BYTES, FALCON_SIG_PADDED, pk, CRYPTO_PUBLICKEYBYTES, (shake256_context *)&sc, tmp.b, sizeof(tmp.b))) {
 
 	/*
 	 * Verify signature.
@@ -275,7 +277,7 @@ crypto_sign_open(unsigned char *m, unsigned long long *mlen,
 	/*
 	 * Return plaintext.
 	 */
-	memmove(m, sm + NONCELEN + sig_len, msg_len);
+	memmove(m, sm + CRYPTO_BYTES, msg_len);
 	*mlen = msg_len;
 	return 0;
 }
