@@ -105,7 +105,8 @@ crypto_sign(unsigned char *sm, unsigned long long *smlen,
 		uint16_t hm[512];
 	} r;
 	TEMPALLOC unsigned char seed[48], nonce[NONCELEN];
-	TEMPALLOC inner_shake256_context sc;
+	TEMPALLOC inner_shake256_context sc_rng;
+	TEMPALLOC inner_shake256_context sc_hashdata;
 	size_t u, v, sig_len;
 
 	/*
@@ -148,28 +149,28 @@ crypto_sign(unsigned char *sm, unsigned long long *smlen,
 	/*
 	 * Hash message nonce + message into a vector.
 	 */
-	inner_shake256_init(&sc);
-	inner_shake256_inject(&sc, nonce, sizeof nonce);
-	inner_shake256_inject(&sc, m, mlen);
-	inner_shake256_flip(&sc);
-	Zf(hash_to_point_vartime)(&sc, r.hm, 9);
+	inner_shake256_init(&sc_hashdata);
+	inner_shake256_inject(&sc_hashdata, nonce, sizeof nonce);
+	inner_shake256_inject(&sc_hashdata, m, mlen);
+	inner_shake256_flip(&sc_hashdata);
+	Zf(hash_to_point_vartime)(&sc_hashdata, r.hm, 9);
     // need to save this hash data
 
 	/*
 	 * Initialize a RNG.
 	 */
 	randombytes(seed, sizeof seed);
-	inner_shake256_init(&sc);
-	inner_shake256_inject(&sc, seed, sizeof seed);
-	inner_shake256_flip(&sc);
+	inner_shake256_init(&sc_rng);
+	inner_shake256_inject(&sc_rng, seed, sizeof seed);
+	inner_shake256_flip(&sc_rng);
 
 
 	/*
 	 * Compute the signature.
 	 */
-    // falcon_sign_dyn_finish(&sc, sig, CRYPTO_BYTES, FALCON_SIG_COMPRESSED,
-    // sk, CRYPTO_SECRETKEYBYTES, nonce, tmp.b, sizeof(tmp.b))
-	Zf(sign_dyn)(r.sig, &sc, f, g, F, G, r.hm, 9, tmp.b);
+    // falcon_sign_dyn_finish(&sc, sm, CRYPTO_BYTES - 2, FALCON_SIG_COMPRESSED, sk, CRYPTO_SECRETKEYBYTES, 
+    // nonce, tmp.b, sizeof(tmp.b))
+	Zf(sign_dyn)(r.sig, &sc_rng, f, g, F, G, r.hm, 9, tmp.b);
 
 
 
