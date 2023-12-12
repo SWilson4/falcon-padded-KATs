@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "api.h"
+#include "falcon.h"
 #include "inner.h"
 
 #define NONCELEN   40
@@ -95,7 +96,7 @@ crypto_sign(unsigned char *sm, unsigned long long *smlen,
 	const unsigned char *sk)
 {
 	TEMPALLOC union {
-		uint8_t b[72 * 512];
+		uint8_t b[FALCON_TMPSIZE_SIGNDYN(9)];
 		uint64_t dummy_u64;
 		fpr dummy_fpr;
 	} tmp;
@@ -108,6 +109,7 @@ crypto_sign(unsigned char *sm, unsigned long long *smlen,
 	TEMPALLOC inner_shake256_context sc_rng;
 	TEMPALLOC inner_shake256_context sc_hashdata;
 	size_t u, v, sig_len;
+    int ret;
 
 	/*
 	 * Decode the private key.
@@ -152,8 +154,8 @@ crypto_sign(unsigned char *sm, unsigned long long *smlen,
 	inner_shake256_init(&sc_hashdata);
 	inner_shake256_inject(&sc_hashdata, nonce, sizeof nonce);
 	inner_shake256_inject(&sc_hashdata, m, mlen);
-	inner_shake256_flip(&sc_hashdata);
-	Zf(hash_to_point_vartime)(&sc_hashdata, r.hm, 9);
+	//inner_shake256_flip(&sc_hashdata);
+	//Zf(hash_to_point_vartime)(&sc_hashdata, r.hm, 9);
     // need to save this hash data
 
 	/*
@@ -168,9 +170,11 @@ crypto_sign(unsigned char *sm, unsigned long long *smlen,
 	/*
 	 * Compute the signature.
 	 */
-    // falcon_sign_dyn_finish(&sc, sm, CRYPTO_BYTES - 2, FALCON_SIG_COMPRESSED, sk, CRYPTO_SECRETKEYBYTES, 
-    // nonce, tmp.b, sizeof(tmp.b))
-	Zf(sign_dyn)(r.sig, &sc_rng, f, g, F, G, r.hm, 9, tmp.b);
+    sig_len = CRYPTO_BYTES - 2;
+    if ((ret = falcon_sign_dyn_finish((shake256_context *)&sc_rng, sm, &sig_len, FALCON_SIG_COMPRESSED, sk, CRYPTO_SECRETKEYBYTES, (shake256_context *)&sc_hashdata, nonce, tmp.b, sizeof(tmp.b))) != 0) {
+        return ret;
+    }
+	//Zf(sign_dyn)(r.sig, &sc_rng, f, g, F, G, r.hm, 9, tmp.b);
 
 
 
@@ -181,17 +185,18 @@ crypto_sign(unsigned char *sm, unsigned long long *smlen,
 	 *   message              mlen bytes
 	 *   signature            slen bytes
 	 */
-	sm[0] = 0x30 + 9;
-	sig_len = Zf(comp_encode)(sm + 1 + sizeof nonce, CRYPTO_BYTES - sizeof nonce - 3, r.sig, 9);
+	//sm[0] = 0x30 + 9;
+	//sig_len = Zf(comp_encode)(sm + 1 + sizeof nonce, CRYPTO_BYTES - sizeof nonce - 3, r.sig, 9);
 	if (sig_len == 0) {
 		return -7;
 	}
-	sig_len ++;
-	memmove(sm + sizeof nonce + sig_len, m, mlen);
-	sm[sizeof nonce + mlen + sig_len] = (unsigned char)(sig_len >> 8);
-	sm[sizeof nonce + mlen + sig_len + 1] = (unsigned char)sig_len;
-	memcpy(sm + 1, nonce, sizeof nonce);
-	*smlen = 2 + (sizeof nonce) + mlen + sig_len;
+	//sig_len ++;
+	memmove(sm + sig_len, m, mlen);
+	//memcpy(sm + 1, nonce, sizeof nonce);
+	*smlen = 2 + sig_len + mlen;
+    sig_len -= sizeof nonce;
+	sm[sizeof nonce + sig_len + mlen] = (unsigned char)(sig_len >> 8);
+	sm[sizeof nonce + sig_len + mlen + 1] = (unsigned char)sig_len;
 	return 0;
 }
 
